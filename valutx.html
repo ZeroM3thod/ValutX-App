@@ -1,0 +1,2064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>ValutX — Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* ─── ValutX Design Tokens ─── */
+        :root {
+          --ink:       #1c1c1c;
+          --cream:     #f6f1e9;
+          --parchment: #ede7da;
+          --gold:      #b8935a;
+          --gold-l:    #d4aa72;
+          --sage:      #4a6741;
+          --sage-l:    #6a8c60;
+          --mist:      #8e9b8a;
+          --charcoal:  #2e2e2e;
+          --surface:   #faf7f2;
+          --border:    rgba(184,147,90,0.18);
+          --border-s:  rgba(184,147,90,0.28);
+          --txt2:      #6b6459;
+          --txt3:      #9c9186;
+          --r:         4px;
+          --r-lg:      12px;
+          --nav-h:     72px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+          height: 100%;
+          font-family: 'DM Sans', sans-serif;
+          background: var(--cream);
+          color: var(--ink);
+          -webkit-tap-highlight-color: transparent;
+          overflow-x: hidden;
+        }
+
+        /* ── ANIMATED BG CANVAS ── */
+        #bg-canvas {
+          position: fixed; inset: 0; z-index: 0;
+          pointer-events: none; opacity: .055;
+          width: 100%; height: 100%;
+        }
+
+        /* ── TOPBAR ── */
+        .topbar {
+          position: sticky; top: 0; z-index: 200;
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 0 18px; height: 56px;
+          background: rgba(246,241,233,0.95);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border-bottom: 1px solid var(--border);
+        }
+        .topbar-logo { display: flex; align-items: center; gap: 7px; }
+        .logo-mark {
+          width: 28px; height: 28px; background: var(--ink); border-radius: var(--r);
+          display: flex; align-items: center; justify-content: center;
+          position: relative; overflow: hidden; flex-shrink: 0;
+        }
+        .logo-mark::after {
+          content: ''; position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);
+          width: 11px; height: 1.5px; background: var(--gold); border-radius: 2px;
+          box-shadow: 0 -4px 0 var(--gold-l), 0 -8px 0 var(--cream);
+        }
+        .logo-text {
+          font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; font-weight: 600;
+          color: var(--ink); letter-spacing: .05em;
+        }
+        .logo-text span { color: var(--gold); }
+        .topbar-avatar {
+          width: 34px; height: 34px; border-radius: 50%;
+          background: var(--parchment); border: 1.5px solid var(--border-s);
+          display: flex; align-items: center; justify-content: center;
+          font-family: 'Cormorant Garamond', serif; font-size: .9rem; font-weight: 600; color: var(--gold);
+          cursor: pointer; transition: border-color .2s;
+        }
+        .topbar-avatar:active { border-color: var(--gold); }
+
+        /* ── MAIN SCROLL AREA ── */
+        .main {
+          position: relative; z-index: 1;
+          padding: 22px 16px calc(var(--nav-h) + 24px);
+          max-width: 540px; margin: 0 auto;
+        }
+
+        /* ── GREETING ── */
+        @keyframes greet-slide {
+          from { opacity:0; transform:translateY(18px) scale(.97); }
+          to   { opacity:1; transform:translateY(0) scale(1); }
+        }
+        @keyframes emoji-bounce {
+          0%,100% { transform: translateY(0) rotate(0deg); }
+          30%     { transform: translateY(-6px) rotate(-8deg); }
+          60%     { transform: translateY(-3px) rotate(5deg); }
+        }
+        @keyframes sub-fade {
+          from { opacity:0; transform:translateX(-10px); }
+          to   { opacity:1; transform:translateX(0); }
+        }
+        .greeting-wrap { animation: greet-slide .7s cubic-bezier(.16,1,.3,1) both; margin-bottom: 22px; }
+        .greeting-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+        .greeting-emoji { display:inline-block; font-size:1.5rem; animation: emoji-bounce 1.2s .5s ease both; margin-right: 6px; vertical-align: middle; }
+        .greeting-text { font-family:'Cormorant Garamond',serif; font-size:clamp(1.5rem,7vw,2.2rem); font-weight:400; color:var(--ink); line-height:1.15; }
+        .greeting-name { font-style:italic; color:var(--gold); position:relative; }
+        .greeting-name::after { content:''; position:absolute; bottom:1px; left:0; width:100%; height:1px; background:linear-gradient(90deg,var(--gold),transparent); opacity:.5; }
+        .greeting-sub { font-size:.69rem; letter-spacing:.12em; text-transform:uppercase; color:var(--txt2); margin-top:6px; display:flex; align-items:center; gap:6px; animation: sub-fade .6s .4s ease both; opacity:0; animation-fill-mode:forwards; }
+        .greeting-dot { width:5px; height:5px; border-radius:50%; background:var(--gold); opacity:.6; flex-shrink:0; }
+        .live-pill {
+          display:inline-flex; align-items:center; gap:6px;
+          background:rgba(74,103,65,0.15); border:1px solid rgba(106,140,96,0.3);
+          border-radius:100px; padding:4px 10px;
+          font-size:.64rem; letter-spacing:.08em; text-transform:uppercase; color:#6a8c60;
+          flex-shrink:0; white-space:nowrap;
+        }
+        .live-dot { width:6px; height:6px; border-radius:50%; background:#6a8c60; animation:livePulse 1.8s ease-in-out infinite; }
+        @keyframes livePulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+        /* ── LOCKED ALERT ── */
+        .locked-alert {
+          background:rgba(155,90,58,.08); border:1px solid rgba(155,90,58,.3);
+          border-radius:10px; padding:13px 16px; margin-bottom:16px;
+          display:flex; align-items:center; justify-content:space-between; gap:10; flex-wrap:wrap;
+          animation: greet-slide .6s .1s cubic-bezier(.16,1,.3,1) both;
+        }
+        .locked-icon { width:32px; height:32px; background:rgba(155,90,58,.12); border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+
+        /* ── BALANCE HERO ── */
+        .balance-hero {
+          background: var(--ink); border-radius: var(--r-lg); border: 1px solid rgba(184,147,90,0.2);
+          padding: 24px 20px; position: relative; overflow: hidden;
+          box-shadow: 0 4px 40px rgba(28,28,28,0.12); margin-bottom: 14px;
+          animation: greet-slide .65s .08s cubic-bezier(.16,1,.3,1) both;
+        }
+        .balance-hero::before {
+          content:''; position:absolute; width:280px; height:280px; border-radius:50%;
+          background:radial-gradient(circle,rgba(184,147,90,0.08),transparent 70%);
+          top:-110px; right:-70px; pointer-events:none;
+        }
+        .balance-hero::after {
+          content:''; position:absolute; width:180px; height:180px; border-radius:50%;
+          background:radial-gradient(circle,rgba(74,103,65,0.06),transparent 70%);
+          bottom:-50px; left:-30px; pointer-events:none;
+        }
+        .hero-corner { position:absolute; z-index:1; pointer-events:none; }
+        .hero-corner.tl { top:14px; left:14px; width:18px; height:18px; border-top:1px solid rgba(184,147,90,0.4); border-left:1px solid rgba(184,147,90,0.4); }
+        .hero-corner.tr { top:14px; right:14px; width:18px; height:18px; border-top:1px solid rgba(184,147,90,0.4); border-right:1px solid rgba(184,147,90,0.4); }
+        .hero-corner.bl { bottom:14px; left:14px; width:18px; height:18px; border-bottom:1px solid rgba(184,147,90,0.25); border-left:1px solid rgba(184,147,90,0.25); }
+        .hero-corner.br { bottom:14px; right:14px; width:18px; height:18px; border-bottom:1px solid rgba(184,147,90,0.25); border-right:1px solid rgba(184,147,90,0.25); }
+        .hero-top-line { position:absolute; top:0; left:10%; right:10%; height:1.5px; background:linear-gradient(90deg,transparent,rgba(184,147,90,0.5),transparent); pointer-events:none; }
+        .hero-inner { position:relative; z-index:1; }
+        .hero-row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+        .balance-label-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+        .balance-label-line { width:14px; height:1px; background:rgba(184,147,90,0.5); }
+        .balance-label-txt { font-size:.64rem; letter-spacing:.18em; text-transform:uppercase; color:rgba(246,241,233,0.4); }
+        .balance-num {
+          font-family:'Cormorant Garamond',serif; font-weight:300;
+          font-size:clamp(2rem,10vw,3.2rem); line-height:1;
+          background:linear-gradient(135deg,#f6f1e9,#d4aa72,#f6f1e9);
+          -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+          filter:drop-shadow(0 0 16px rgba(212,170,114,0.35));
+        }
+        .pnl-row { margin-top:8px; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+        .pnl-badge {
+          display:inline-flex; align-items:center; gap:4px; border-radius:100px; padding:3px 9px;
+          font-size:.68rem; letter-spacing:.04em;
+        }
+        .balance-sub-txt { color:rgba(246,241,233,0.35); font-size:.65rem; }
+        .avg-roi-badge {
+          display:inline-flex; align-items:center; gap:4px;
+          background:rgba(184,147,90,0.12); border:1px solid rgba(184,147,90,0.3);
+          border-radius:100px; padding:3px 9px; color:var(--gold-l); font-size:.68rem; letter-spacing:.04em;
+        }
+        .locked-line { margin-top:8px; font-size:.68rem; color:rgba(246,241,233,0.4); display:flex; align-items:center; gap:6px; }
+        .locked-line strong { color:rgba(246,241,233,0.75); font-weight:500; }
+        .hero-roi-box {
+          background:rgba(255,255,255,0.06); border:1px solid rgba(184,147,90,0.2);
+          border-radius:10px; padding:12px 14px; text-align:right; flex-shrink:0;
+        }
+        .hero-roi-label { font-size:.55rem; letter-spacing:.18em; text-transform:uppercase; color:rgba(246,241,233,0.3); margin-bottom:5px; }
+        .hero-roi-num { font-family:'Cormorant Garamond',serif; font-size:1.6rem; font-weight:300; color:rgba(246,241,233,0.88); line-height:1; }
+        .hero-roi-sub { font-size:.56rem; letter-spacing:.1em; text-transform:uppercase; color:rgba(246,241,233,0.25); margin-top:4px; }
+        .prog-section { margin-top:18px; position:relative; z-index:1; }
+        .prog-labels { display:flex; justify-content:space-between; font-size:.62rem; color:rgba(246,241,233,0.3); letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px; align-items:center; }
+        .prog-labels-right { color:var(--gold-l); font-weight:500; }
+        .prog-label-left { display:flex; align-items:center; gap:5px; }
+        .prog-track { background:rgba(246,241,233,0.08); border-radius:100px; height:4px; overflow:hidden; }
+        .prog-fill { height:100%; border-radius:100px; background:linear-gradient(90deg,var(--gold),var(--gold-l)); transition:width 1.6s ease; }
+        .prog-sub { display:flex; justify-content:space-between; font-size:.6rem; color:rgba(246,241,233,0.2); margin-top:4px; }
+
+        /* ── STAT CARDS ── */
+        .stats-grid {
+          display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:14px;
+          animation: greet-slide .6s .14s cubic-bezier(.16,1,.3,1) both;
+        }
+        .stat-card {
+          background:rgba(250,247,242,0.8); backdrop-filter:blur(12px);
+          border:1px solid var(--border); border-radius:var(--r-lg);
+          padding:15px 14px; position:relative; overflow:hidden;
+          transition: all .25s;
+        }
+        .stat-card::before { content:''; position:absolute; inset:0; background:radial-gradient(circle at 90% 10%,rgba(184,147,90,0.04),transparent 60%); pointer-events:none; }
+        .stat-card:active { border-color:var(--border-s); transform:scale(.98); }
+        .stat-card-header { display:flex; align-items:center; gap:7px; margin-bottom:12px; }
+        .stat-icon { width:24px; height:24px; border-radius:var(--r); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .stat-label { font-size:.62rem; letter-spacing:.12em; text-transform:uppercase; color:var(--txt2); }
+        .stat-num { font-family:'Cormorant Garamond',serif; font-size:1.55rem; font-weight:400; color:var(--ink); line-height:1; }
+        .stat-sub { font-size:.66rem; color:var(--txt3); margin-top:4px; }
+        .stat-up { color:var(--sage); }
+        .stat-gold { color:var(--gold); }
+        .stat-dn { color:#b05252; }
+
+        /* ── ACTION BUTTONS ── */
+        .action-row { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:14px;
+          animation: greet-slide .6s .17s cubic-bezier(.16,1,.3,1) both;
+        }
+        .btn {
+          padding:13px 16px; font-family:'DM Sans',sans-serif;
+          font-size:.75rem; letter-spacing:.1em; text-transform:uppercase;
+          border-radius:var(--r); cursor:pointer; transition:all .25s;
+          display:inline-flex; align-items:center; justify-content:center; gap:7px;
+          position:relative; overflow:hidden; border:none;
+        }
+        .btn-dark { background:var(--ink); color:var(--cream); border:1px solid var(--ink); }
+        .btn-dark::after { content:''; position:absolute; inset:0; background:var(--gold); transform:scaleX(0); transform-origin:left; transition:transform .3s ease; z-index:0; }
+        .btn-dark span { position:relative; z-index:1; }
+        .btn-dark:active::after { transform:scaleX(1); }
+        .btn-dark:active { border-color:var(--gold); }
+        .btn-outline { background:transparent; color:var(--ink); border:1px solid rgba(28,28,28,0.22); }
+        .btn-outline:active { border-color:var(--gold); color:var(--gold); transform:scale(.97); }
+
+        /* ── CARD BASE ── */
+        .card {
+          background:rgba(250,247,242,0.8); backdrop-filter:blur(12px);
+          border:1px solid var(--border); border-radius:var(--r-lg);
+          position:relative; overflow:hidden;
+        }
+        .card::before { content:''; position:absolute; inset:0; background:radial-gradient(circle at 90% 10%,rgba(184,147,90,0.04),transparent 60%); pointer-events:none; }
+        .card-inner { position:relative; z-index:1; padding:20px 18px; }
+
+        /* ── CHART CARD ── */
+        .chart-card { margin-bottom:14px; animation: greet-slide .6s .2s cubic-bezier(.16,1,.3,1) both; }
+        .card-label { font-size:.65rem; letter-spacing:.18em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:5px; }
+        .card-title { font-family:'Cormorant Garamond',serif; font-size:1.15rem; font-weight:400; color:var(--ink); }
+        .chart-wrap { height:150px; position:relative; margin-top:14px; }
+        .divider { width:100%; height:1px; background:var(--border); margin:14px 0; }
+        .chart-footer { display:flex; justify-content:space-between; }
+        .chart-stat { }
+        .chart-stat-label { font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; color:var(--txt3); }
+        .chart-stat-val { font-family:'Cormorant Garamond',serif; font-size:1.05rem; font-weight:500; color:var(--ink); }
+
+        /* ── SEASONS CARD ── */
+        .seasons-card { margin-bottom:14px; animation: greet-slide .6s .23s cubic-bezier(.16,1,.3,1) both; }
+        .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+        .card-header-action { font-size:.65rem; letter-spacing:.1em; text-transform:uppercase; color:var(--gold); background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; }
+        .season-rows { display:flex; flex-direction:column; gap:8px; }
+        .season-row {
+          display:flex; align-items:center; justify-content:space-between;
+          padding:12px 14px; background:rgba(250,247,242,0.7); border:1px solid var(--border);
+          border-radius:var(--r-lg); transition:all .2s;
+        }
+        .season-row:active { border-color:var(--border-s); }
+        .season-row-left { display:flex; align-items:center; gap:10px; }
+        .season-badge {
+          width:32px; height:32px; border-radius:var(--r); display:flex; align-items:center; justify-content:center;
+          font-family:'Cormorant Garamond',serif; font-size:.82rem; font-weight:600; flex-shrink:0; position:relative;
+        }
+        .season-name { font-size:.8rem; font-weight:500; color:var(--ink); }
+        .season-period { font-size:.65rem; color:var(--txt3); margin-top:1px; }
+        .season-row-right { text-align:right; }
+        .season-roi { font-family:'Cormorant Garamond',serif; font-size:1.05rem; font-weight:500; }
+        .tag { display:inline-block; padding:2px 8px; border-radius:100px; font-size:.62rem; letter-spacing:.06em; margin-top:3px; }
+        .tag-sage { background:rgba(74,103,65,0.1); border:1px solid rgba(74,103,65,0.22); color:var(--sage); }
+        .tag-gold { background:rgba(184,147,90,0.1); border:1px solid rgba(184,147,90,0.22); color:var(--gold); }
+        .tag-live { background:rgba(74,103,65,0.12); border:1px solid rgba(106,140,96,0.3); color:var(--sage); }
+        .tag-dn { background:rgba(155,58,58,0.08); border:1px solid rgba(155,58,58,0.22); color:#b05252; }
+        .no-history { text-align:center; padding:18px 0; color:var(--txt3); font-size:.8rem; }
+
+        /* ── REFERRAL CARD ── */
+        .ref-card { margin-bottom:14px; animation: greet-slide .6s .26s cubic-bezier(.16,1,.3,1) both; }
+        .ref-header { display:grid; grid-template-columns:1fr auto; align-items:start; gap:12px; margin-bottom:18px; }
+        .ref-icon { width:40px; height:40px; background:var(--ink); border-radius:var(--r); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .ref-body-txt { font-size:.79rem; color:var(--txt2); margin-top:5px; line-height:1.65; font-weight:300; }
+        .ref-copy-row { display:flex; gap:8px; margin-bottom:16px; }
+        .ref-code {
+          background:var(--parchment); border:1px solid var(--border-s); border-radius:var(--r);
+          padding:10px 14px; font-family:'DM Sans',sans-serif; font-size:.8rem; color:var(--gold);
+          letter-spacing:.06em; font-weight:500; flex:1;
+        }
+        .copy-btn {
+          padding:10px 16px; background:var(--ink); color:var(--cream); border:1px solid var(--ink);
+          border-radius:var(--r); font-size:.7rem; letter-spacing:.1em; text-transform:uppercase;
+          cursor:pointer; font-family:'DM Sans',sans-serif; transition:background .2s; white-space:nowrap;
+        }
+        .copy-btn:active { background:var(--gold); }
+        .ref-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:2px; }
+        .ref-stat { background:var(--parchment); border:1px solid var(--border); padding:12px 12px; border-radius:var(--r); }
+        .ref-stat-label { font-size:.62rem; letter-spacing:.1em; text-transform:uppercase; color:var(--txt3); margin-bottom:5px; }
+        .ref-stat-val { font-family:'Cormorant Garamond',serif; font-size:1.45rem; font-weight:400; }
+
+        /* ── NOTICE STRIP ── */
+        .notice-strip {
+          background:var(--ink); border-radius:var(--r-lg); padding:18px 18px;
+          display:flex; flex-direction:column; gap:14px; margin-bottom:14px;
+          animation: greet-slide .6s .29s cubic-bezier(.16,1,.3,1) both;
+        }
+        .notice-label { font-size:.63rem; letter-spacing:.16em; text-transform:uppercase; color:rgba(246,241,233,.3); margin-bottom:4px; }
+        .notice-text { font-family:'Cormorant Garamond',serif; font-size:1.05rem; font-weight:400; color:var(--cream); }
+
+        /* ── TOAST ── */
+        .toast {
+          position:fixed; top:14px; left:50%; transform:translateX(-50%) translateY(-70px);
+          background:var(--ink); border:1px solid rgba(184,147,90,0.3); border-radius:var(--r);
+          padding:10px 20px; z-index:3000; font-size:.76rem; letter-spacing:.04em; color:var(--cream);
+          transition:transform .4s cubic-bezier(.16,1,.3,1); white-space:nowrap;
+          box-shadow:0 4px 20px rgba(28,28,28,0.2); pointer-events:none;
+        }
+        .toast.show { transform:translateX(-50%) translateY(0); }
+
+        /* ── BOTTOM NAV ── */
+        .bottom-nav {
+          position:fixed; bottom:0; left:0; right:0; z-index:500;
+          height:var(--nav-h);
+          background:rgba(246,241,233,0.97);
+          backdrop-filter:blur(24px);
+          -webkit-backdrop-filter:blur(24px);
+          border-top:1px solid var(--border);
+          display:flex; align-items:stretch;
+          padding-bottom:env(safe-area-inset-bottom);
+          box-shadow:0 -4px 24px rgba(28,28,28,0.06);
+        }
+        .nav-item {
+          flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+          gap:4px; cursor:pointer; background:none; border:none; padding:8px 4px 6px;
+          position:relative; transition:all .2s; font-family:'DM Sans',sans-serif;
+        }
+        .nav-item::before {
+          content:''; position:absolute; top:0; left:50%; transform:translateX(-50%);
+          width:0; height:2px; background:var(--gold); border-radius:0 0 2px 2px;
+          transition:width .25s cubic-bezier(.16,1,.3,1);
+        }
+        .nav-item.active::before { width:28px; }
+        .nav-item svg { transition:all .2s; }
+        .nav-item.active svg { transform:translateY(-1px); }
+        .nav-icon-wrap {
+          width:32px; height:32px; display:flex; align-items:center; justify-content:center;
+          border-radius:10px; transition:all .2s;
+        }
+        .nav-item.active .nav-icon-wrap { background:rgba(184,147,90,0.1); }
+        .nav-label { font-size:.58rem; letter-spacing:.06em; text-transform:uppercase; color:var(--txt3); transition:color .2s; font-weight:500; }
+        .nav-item.active .nav-label { color:var(--gold); font-weight:600; }
+        .nav-item.active svg { stroke:var(--gold); }
+        .nav-item:not(.active) svg { stroke:var(--txt3); }
+
+        /* Season center button */
+        .nav-item.nav-center .nav-icon-wrap {
+          width:44px; height:44px; border-radius:12px;
+          background:var(--ink); border:1px solid rgba(184,147,90,0.25);
+          box-shadow:0 4px 16px rgba(28,28,28,0.15);
+          transition:all .22s;
+          margin-top:-10px;
+        }
+        .nav-item.nav-center.active .nav-icon-wrap {
+          background:var(--gold); border-color:var(--gold);
+        }
+        .nav-item.nav-center svg { stroke:var(--cream); }
+        .nav-item.nav-center.active svg { stroke:var(--cream); }
+        .nav-item.nav-center .nav-label { margin-top:2px; }
+        .nav-item.nav-center:active .nav-icon-wrap { transform:scale(.93); }
+
+        /* ── MODAL OVERLAY ── */
+        .modal-overlay {
+          position:fixed; inset:0; z-index:1000;
+          background:rgba(28,28,28,0.65); backdrop-filter:blur(8px);
+          display:flex; align-items:flex-end; justify-content:center;
+          opacity:0; pointer-events:none; transition:opacity .3s ease;
+        }
+        .modal-overlay.open { opacity:1; pointer-events:all; }
+        .modal-sheet {
+          background:var(--cream); border:1px solid var(--border);
+          border-radius:16px 16px 0 0; width:100%; max-width:480px;
+          padding:28px 22px calc(var(--nav-h) + 20px);
+          transform:translateY(100%); transition:transform .35s cubic-bezier(.16,1,.3,1);
+          position:relative; max-height:85vh; overflow-y:auto;
+        }
+        .modal-overlay.open .modal-sheet { transform:translateY(0); }
+        .modal-handle { width:36px; height:3px; background:var(--border-s); border-radius:100px; margin:0 auto 24px; }
+        .modal-title { font-family:'Cormorant Garamond',serif; font-size:1.4rem; font-weight:400; color:var(--ink); margin-bottom:20px; }
+        .modal-label { font-size:.67rem; letter-spacing:.12em; text-transform:uppercase; color:var(--txt2); margin-bottom:7px; display:block; }
+        .modal-input {
+          width:100%; padding:12px 14px; background:var(--surface); border:1px solid var(--border);
+          border-radius:var(--r); color:var(--ink); font-family:'DM Sans',sans-serif; font-size:.88rem;
+          outline:none; transition:border-color .2s; margin-bottom:14px;
+        }
+        .modal-input:focus { border-color:var(--gold); }
+        .modal-input::placeholder { color:var(--txt3); }
+        .modal-btn-row { display:flex; gap:10px; margin-top:6px; }
+        .modal-btn-row .btn { flex:1; }
+
+        /* ── SCREEN PAGES ── */
+        .screen { display:none; }
+        .screen.active { display:block; }
+
+        /* ── SETTINGS PAGE ── */
+        .settings-section { margin-bottom:22px; }
+        .settings-section-title { font-size:.65rem; letter-spacing:.16em; text-transform:uppercase; color:var(--txt3); margin-bottom:10px; padding-left:2px; }
+        .settings-item {
+          display:flex; align-items:center; justify-content:space-between;
+          padding:14px 16px; background:rgba(250,247,242,0.8); border:1px solid var(--border);
+          border-radius:var(--r-lg); margin-bottom:6px; cursor:pointer; transition:all .2s;
+        }
+        .settings-item:active { border-color:var(--border-s); }
+        .settings-item-left { display:flex; align-items:center; gap:12px; }
+        .settings-item-icon { width:34px; height:34px; border-radius:var(--r); display:flex; align-items:center; justify-content:center; }
+        .settings-item-title { font-size:.84rem; font-weight:500; color:var(--ink); }
+        .settings-item-sub { font-size:.68rem; color:var(--txt3); margin-top:1px; }
+        .settings-chevron { color:var(--txt3); }
+
+        /* Toggle switch */
+        .toggle { width:40px; height:22px; background:rgba(28,28,28,0.12); border-radius:100px; position:relative; cursor:pointer; transition:background .25s; flex-shrink:0; }
+        .toggle.on { background:var(--sage); }
+        .toggle::after { content:''; position:absolute; width:16px; height:16px; border-radius:50%; background:#fff; top:3px; left:3px; transition:transform .25s cubic-bezier(.16,1,.3,1); box-shadow:0 1px 4px rgba(0,0,0,0.2); }
+        .toggle.on::after { transform:translateX(18px); }
+
+        /* Profile card in settings */
+        .profile-card {
+          background:var(--ink); border-radius:var(--r-lg); padding:22px 18px; margin-bottom:20px;
+          display:flex; align-items:center; gap:14px;
+          border:1px solid rgba(184,147,90,0.2);
+        }
+        .profile-avatar-lg {
+          width:52px; height:52px; border-radius:50%; background:rgba(184,147,90,0.15);
+          border:2px solid rgba(184,147,90,0.35); display:flex; align-items:center; justify-content:center;
+          font-family:'Cormorant Garamond',serif; font-size:1.3rem; font-weight:600; color:var(--gold);
+          flex-shrink:0;
+        }
+        .profile-name { font-family:'Cormorant Garamond',serif; font-size:1.25rem; font-weight:400; color:var(--cream); }
+        .profile-email { font-size:.72rem; color:rgba(246,241,233,0.45); margin-top:3px; }
+        .profile-tag { display:inline-block; margin-top:8px; padding:2px 9px; background:rgba(184,147,90,0.15); border:1px solid rgba(184,147,90,0.3); border-radius:100px; font-size:.6rem; letter-spacing:.08em; text-transform:uppercase; color:var(--gold); }
+
+        /* ── SEASON PAGE ── */
+        .season-hero {
+          background:var(--ink); border-radius:var(--r-lg); padding:22px 18px; margin-bottom:14px;
+          border:1px solid rgba(184,147,90,0.2); position:relative; overflow:hidden;
+        }
+        .season-hero::before { content:''; position:absolute; width:220px; height:220px; border-radius:50%; background:radial-gradient(circle,rgba(184,147,90,0.08),transparent 70%); top:-80px; right:-60px; pointer-events:none; }
+        .season-card-item {
+          background:rgba(250,247,242,0.8); border:1px solid var(--border); border-radius:var(--r-lg);
+          padding:18px 16px; margin-bottom:10px; transition:all .2s;
+        }
+        .season-card-item:active { border-color:var(--border-s); }
+        .season-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+        .season-card-name { font-family:'Cormorant Garamond',serif; font-size:1.1rem; font-weight:400; color:var(--ink); }
+        .season-detail-row { display:flex; justify-content:space-between; font-size:.75rem; color:var(--txt2); margin-bottom:6px; }
+        .season-detail-val { color:var(--ink); font-weight:500; }
+        .season-pool-track { background:rgba(184,147,90,0.1); border-radius:100px; height:3px; overflow:hidden; margin-top:12px; }
+        .season-pool-fill { height:100%; border-radius:100px; background:linear-gradient(90deg,var(--gold),var(--gold-l)); }
+
+        /* ── DEPOSIT/WITHDRAW PAGES ── */
+        .form-card {
+          background:rgba(250,247,242,0.8); border:1px solid var(--border); border-radius:var(--r-lg);
+          padding:22px 18px; margin-bottom:14px;
+        }
+        .form-label { font-size:.67rem; letter-spacing:.12em; text-transform:uppercase; color:var(--txt2); margin-bottom:8px; display:block; }
+        .form-input {
+          width:100%; padding:13px 14px; background:var(--surface); border:1px solid var(--border);
+          border-radius:var(--r); color:var(--ink); font-family:'DM Sans',sans-serif; font-size:.9rem;
+          outline:none; transition:border-color .2s; margin-bottom:14px;
+        }
+        .form-input:focus { border-color:var(--gold); }
+        .form-input::placeholder { color:var(--txt3); }
+        .amount-display {
+          font-family:'Cormorant Garamond',serif; font-size:2.8rem; font-weight:300;
+          color:var(--ink); text-align:center; padding:20px 0 10px;
+          border-bottom:1px solid var(--border); margin-bottom:18px;
+        }
+        .amount-display span { color:var(--gold); }
+        .quick-amounts { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; margin-bottom:16px; }
+        .quick-btn {
+          padding:9px 4px; background:var(--parchment); border:1px solid var(--border);
+          border-radius:var(--r); font-size:.73rem; color:var(--txt2); cursor:pointer;
+          font-family:'DM Sans',sans-serif; text-align:center; transition:all .2s;
+        }
+        .quick-btn:active { background:rgba(184,147,90,0.1); border-color:var(--gold); color:var(--gold); }
+        .info-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); font-size:.82rem; }
+        .info-row:last-child { border-bottom:none; }
+        .info-key { color:var(--txt2); }
+        .info-val { color:var(--ink); font-weight:500; }
+
+        /* ── PAGE HEADER ── */
+        .page-header { margin-bottom:22px; }
+        .page-header-label { font-size:.64rem; letter-spacing:.18em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:4px; }
+        .page-header-title { font-family:'Cormorant Garamond',serif; font-size:1.8rem; font-weight:400; color:var(--ink); }
+
+        /* ── SCROLLBAR ── */
+        ::-webkit-scrollbar { width:3px; }
+        ::-webkit-scrollbar-track { background:transparent; }
+        ::-webkit-scrollbar-thumb { background:var(--border); border-radius:100px; }
+
+        /* ── LOADER ── */
+        .loader-overlay {
+          position:fixed; inset:0; z-index:9999; background:var(--cream);
+          display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
+        }
+        .loader-logo { font-family:'Cormorant Garamond',serif; font-size:2.2rem; font-weight:300; color:var(--ink); letter-spacing:.05em; }
+        .loader-logo span { color:var(--gold); }
+        .loader-bar { width:120px; height:2px; background:var(--border); border-radius:100px; overflow:hidden; }
+        .loader-bar-fill { height:100%; background:linear-gradient(90deg,var(--gold),var(--gold-l)); width:0; animation:loadFill 1.2s ease forwards; border-radius:100px; }
+        @keyframes loadFill { to { width:100%; } }
+        .loader-txt { font-size:.68rem; letter-spacing:.18em; text-transform:uppercase; color:var(--txt3); }
+
+        /* ─── FAQ ACCORDION ─── */
+        .faq-item {
+          border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden;
+          margin-bottom:6px; transition:border-color .2s; cursor:pointer;
+        }
+        .faq-item:active, .faq-item.open { border-color:var(--border-s); }
+        .faq-q {
+          padding:13px 16px; font-size:.84rem; font-weight:500; color:var(--ink);
+          display:flex; align-items:center; justify-content:space-between;
+          position:relative;
+        }
+        .faq-q::after {
+          content:'+'; font-size:1.1rem; font-weight:300; color:var(--gold);
+          transition:transform .25s ease; flex-shrink:0; margin-left:8px;
+        }
+        .faq-item.open .faq-q::after { transform:rotate(45deg); }
+        .faq-a {
+          max-height:0; overflow:hidden;
+          transition:max-height .32s ease, padding .32s ease;
+          font-size:.78rem; color:var(--txt2); line-height:1.7;
+          padding:0 16px;
+        }
+        .faq-item.open .faq-a { max-height:120px; padding:0 16px 14px; }
+
+        /* ── ENHANCED REFERRAL SCREEN ── */
+        .rf-screen-wrap { padding-bottom: 4px; }
+
+        /* Referral hero (dark card) */
+        .rf-hero-dark {
+          background: var(--ink);
+          border-radius: var(--r-lg);
+          padding: 22px 18px;
+          margin-bottom: 14px;
+          border: 1px solid rgba(184,147,90,0.2);
+          position: relative;
+          overflow: hidden;
+        }
+        .rf-hero-dark::before {
+          content: '';
+          position: absolute;
+          width: 220px; height: 220px; border-radius: 50%;
+          background: radial-gradient(circle, rgba(184,147,90,0.1), transparent 70%);
+          top: -80px; right: -60px; pointer-events: none;
+        }
+        .rf-hero-dark::after {
+          content: '';
+          position: absolute;
+          top: 0; left: 8%; right: 8%;
+          height: 1.5px;
+          background: linear-gradient(90deg, transparent, rgba(184,147,90,0.55), transparent);
+        }
+        .rf-hero-icon {
+          width: 44px; height: 44px;
+          background: rgba(184,147,90,0.15);
+          border: 1px solid rgba(184,147,90,0.35);
+          border-radius: var(--r-lg);
+          display: flex; align-items: center; justify-content: center;
+          margin-bottom: 14px;
+        }
+        .rf-hero-heading {
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 1.5rem; font-weight: 300;
+          color: var(--cream); margin-bottom: 6px;
+          position: relative; z-index: 1;
+        }
+        .rf-hero-sub {
+          font-size: .76rem;
+          color: rgba(246,241,233,0.45);
+          line-height: 1.7;
+          position: relative; z-index: 1;
+        }
+        .rf-hero-badge {
+          display: inline-flex; align-items: center; gap: 6px;
+          background: rgba(74,103,65,0.18);
+          border: 1px solid rgba(106,140,96,0.3);
+          border-radius: 100px; padding: 4px 10px;
+          font-size: .62rem; letter-spacing: .08em;
+          text-transform: uppercase; color: #6a8c60;
+          margin-top: 12px; position: relative; z-index: 1;
+        }
+
+        /* Tabs (Link / Code) */
+        .rf-tab-bar {
+          display: flex;
+          border: 1px solid var(--border);
+          border-radius: var(--r);
+          overflow: hidden;
+          margin-bottom: 13px;
+        }
+        .rf-tab-btn {
+          flex: 1; padding: 9px 8px;
+          background: var(--cream);
+          color: var(--txt2);
+          border: none; border-right: 1px solid var(--border);
+          font-family: 'DM Sans', sans-serif;
+          font-size: .67rem; letter-spacing: .09em;
+          text-transform: uppercase; cursor: pointer;
+          transition: all .2s;
+        }
+        .rf-tab-btn:last-child { border-right: none; }
+        .rf-tab-btn.active { background: var(--ink); color: var(--gold-l); }
+
+        /* Input + copy row */
+        .rf-input-row {
+          display: flex; align-items: stretch;
+          background: var(--parchment);
+          border: 1px solid var(--border-s);
+          border-radius: var(--r); overflow: hidden;
+          margin-bottom: 12px;
+        }
+        .rf-input-val {
+          flex: 1; padding: 11px 12px;
+          font-family: 'DM Sans', sans-serif;
+          font-size: .78rem; color: var(--txt2);
+          background: transparent; border: none; outline: none;
+          min-width: 0; overflow: hidden;
+          text-overflow: ellipsis; white-space: nowrap;
+        }
+        .rf-input-val.mono {
+          font-family: 'Courier New', monospace;
+          font-size: .86rem; font-weight: 600;
+          color: var(--gold); letter-spacing: .06em;
+        }
+        .rf-copy-btn {
+          flex-shrink: 0; padding: 0 15px;
+          background: var(--ink); color: var(--cream);
+          border: none; cursor: pointer;
+          font-family: 'DM Sans', sans-serif;
+          font-size: .66rem; letter-spacing: .1em;
+          text-transform: uppercase; white-space: nowrap;
+          transition: all .2s;
+        }
+        .rf-copy-btn:active { background: var(--gold); }
+        .rf-copy-btn.copied { background: var(--sage); }
+
+        /* Share buttons */
+        .rf-share-row {
+          display: grid; grid-template-columns: 1fr 1fr;
+          gap: 7px; margin-top: 4px;
+        }
+        .rf-share-btn {
+          padding: 10px 8px;
+          background: transparent;
+          border: 1px solid var(--border);
+          border-radius: var(--r);
+          font-family: 'DM Sans', sans-serif;
+          font-size: .68rem; letter-spacing: .06em;
+          text-transform: uppercase; color: var(--txt2);
+          cursor: pointer; transition: all .2s;
+          display: flex; align-items: center;
+          justify-content: center; gap: 5px;
+        }
+        .rf-share-btn:active { border-color: var(--gold); color: var(--gold); background: rgba(184,147,90,0.06); }
+
+        /* Stat grid */
+        .rf-stat-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 9px; margin-bottom: 14px;
+        }
+        .rf-stat-tile {
+          background: rgba(250,247,242,0.8);
+          border: 1px solid var(--border);
+          border-radius: var(--r-lg);
+          padding: 14px 13px;
+          position: relative; overflow: hidden;
+          transition: all .25s;
+        }
+        .rf-stat-tile::before {
+          content: ''; position: absolute;
+          top: 0; left: 0; width: 2px; height: 0;
+          background: var(--gold); transition: height .35s;
+        }
+        .rf-stat-tile:active::before,
+        .rf-stat-tile:hover::before { height: 100%; }
+        .rf-tile-icon {
+          width: 24px; height: 24px;
+          border-radius: var(--r);
+          display: flex; align-items: center; justify-content: center;
+          margin-bottom: 10px;
+        }
+        .rf-tile-val {
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 1.5rem; font-weight: 400;
+          color: var(--ink); line-height: 1;
+          margin-bottom: 3px;
+        }
+        .rf-tile-lbl {
+          font-size: .6rem; letter-spacing: .1em;
+          text-transform: uppercase; color: var(--txt3);
+        }
+        .rf-tile-sub {
+          font-size: .62rem; color: var(--txt3); margin-top: 4px;
+        }
+
+        /* How it works */
+        .rf-how-card {
+          background: rgba(250,247,242,0.8);
+          border: 1px solid var(--border);
+          border-radius: var(--r-lg);
+          padding: 18px 16px; margin-bottom: 14px;
+          position: relative; overflow: hidden;
+        }
+        .rf-how-card::before {
+          content: '';
+          position: absolute; top: 0; left: 8%; right: 8%;
+          height: 1.5px;
+          background: linear-gradient(90deg, transparent, rgba(184,147,90,0.3), transparent);
+        }
+        .rf-steps { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+        .rf-step {
+          display: flex; align-items: flex-start; gap: 10px;
+          padding: 12px; background: var(--parchment);
+          border: 1px solid var(--border); border-radius: var(--r-lg);
+        }
+        .rf-step-num {
+          width: 24px; height: 24px; border-radius: var(--r);
+          background: var(--ink); color: var(--gold-l);
+          font-family: 'Cormorant Garamond', serif;
+          font-size: .88rem; font-weight: 600;
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
+        }
+        .rf-step-title { font-size: .77rem; font-weight: 500; color: var(--ink); margin-bottom: 2px; }
+        .rf-step-desc { font-size: .67rem; color: var(--txt2); line-height: 1.5; }
+
+        /* Users table/cards */
+        .rf-users-card {
+          background: rgba(250,247,242,0.8);
+          border: 1px solid var(--border);
+          border-radius: var(--r-lg);
+          overflow: hidden;
+          margin-bottom: 14px;
+        }
+        .rf-users-head {
+          padding: 14px 15px;
+          border-bottom: 1px solid var(--border);
+        }
+        .rf-users-title {
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 1.05rem; font-weight: 400; color: var(--ink);
+        }
+        .rf-users-sub { font-size: .66rem; color: var(--txt3); margin-top: 2px; }
+
+        /* Filter pills */
+        .rf-filter-row {
+          display: flex; gap: 6px; flex-wrap: wrap;
+          padding: 10px 15px; border-bottom: 1px solid var(--border);
+        }
+        .rf-pill {
+          padding: 4px 12px; background: var(--parchment);
+          border: 1px solid var(--border); border-radius: 100px;
+          font-size: .63rem; letter-spacing: .07em;
+          text-transform: uppercase; color: var(--txt2);
+          cursor: pointer; transition: all .2s; white-space: nowrap;
+        }
+        .rf-pill:active, .rf-pill.active {
+          background: var(--ink); color: var(--gold-l); border-color: var(--ink);
+        }
+
+        /* User cards (mobile list) */
+        .rf-user-list { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+        .rf-user-card {
+          background: var(--parchment);
+          border: 1px solid var(--border);
+          border-radius: var(--r-lg);
+          padding: 12px 13px;
+          transition: border-color .2s;
+        }
+        .rf-user-card:active { border-color: var(--border-s); }
+        .rf-user-top {
+          display: flex; align-items: center;
+          justify-content: space-between; margin-bottom: 10px;
+        }
+        .rf-user-info { display: flex; align-items: center; gap: 9px; }
+        .rf-user-av {
+          width: 30px; height: 30px; border-radius: 50%;
+          background: rgba(184,147,90,0.15);
+          border: 1px solid var(--border-s);
+          display: flex; align-items: center; justify-content: center;
+          font-family: 'Cormorant Garamond', serif;
+          font-size: .85rem; font-weight: 600; color: var(--gold);
+          flex-shrink: 0;
+        }
+        .rf-user-name { font-size: .82rem; font-weight: 500; color: var(--ink); }
+        .rf-user-handle { font-size: .64rem; color: var(--txt3); margin-top: 1px; }
+        .rf-user-row {
+          display: flex; align-items: center;
+          justify-content: space-between;
+          padding: 7px 0;
+          border-top: 1px solid rgba(184,147,90,0.09);
+          font-size: .72rem;
+        }
+        .rf-user-key { color: var(--txt3); font-size: .6rem; letter-spacing: .09em; text-transform: uppercase; }
+
+        /* Status badge */
+        .rf-badge {
+          display: inline-block; padding: 2px 8px;
+          border-radius: 100px; font-size: .56rem;
+          letter-spacing: .08em; text-transform: uppercase;
+        }
+        .rf-b-active { background: rgba(74,103,65,0.1); color: var(--sage); border: 1px solid rgba(74,103,65,0.22); }
+        .rf-b-pending { background: rgba(184,147,90,0.1); color: var(--gold); border: 1px solid var(--border-s); }
+        .rf-b-inactive { background: rgba(155,58,58,0.08); color: #b05252; border: 1px solid rgba(155,58,58,0.22); }
+
+        /* Empty state */
+        .rf-empty {
+          padding: 36px 20px; text-align: center;
+          font-size: .78rem; color: var(--txt3);
+        }
+
+        /* Pagination */
+        .rf-pagination {
+          padding: 10px 14px;
+          border-top: 1px solid var(--border);
+          display: flex; align-items: center;
+          justify-content: space-between; gap: 8px;
+        }
+        .rf-pg-info { font-size: .63rem; color: var(--txt3); }
+        .rf-pg-btns { display: flex; gap: 4px; }
+        .rf-pg-btn {
+          width: 26px; height: 26px;
+          display: flex; align-items: center; justify-content: center;
+          background: var(--parchment); border: 1px solid var(--border);
+          border-radius: var(--r); font-size: .68rem; color: var(--charcoal);
+          cursor: pointer; font-family: 'DM Sans', sans-serif;
+          transition: all .2s;
+        }
+        .rf-pg-btn:active { border-color: var(--gold); color: var(--gold); }
+        .rf-pg-btn.active { background: var(--ink); color: var(--gold-l); border-color: var(--ink); }
+
+    </style>
+</head>
+<body>
+
+<!-- BG CANVAS -->
+<canvas id="bg-canvas"></canvas>
+
+<!-- LOADER -->
+<div class="loader-overlay" id="loader">
+    <div class="logo-mark" style="width:44px;height:44px;border-radius:8px;"></div>
+    <div class="loader-logo">Valut<span>X</span></div>
+    <div class="loader-bar"><div class="loader-bar-fill"></div></div>
+    <div class="loader-txt">Loading Dashboard</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+    <div class="topbar-logo">
+        <div class="logo-mark"></div>
+        <span class="logo-text">Valut<span>X</span></span>
+    </div>
+    <div class="topbar-avatar" id="topbar-avatar">AJ</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SCREEN: DASHBOARD -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="screen active" id="screen-dashboard">
+    <div class="main">
+
+        <!-- GREETING -->
+        <div class="greeting-wrap" id="greeting-block">
+            <div class="greeting-top">
+                <div>
+                    <span class="greeting-emoji" id="greeting-emoji">☀️</span>
+                    <span class="greeting-text" id="greeting-text">Good morning,<br><span class="greeting-name" id="greeting-name">Alex</span></span>
+                </div>
+                <div class="live-pill">
+                    <div class="live-dot"></div>
+                    <span id="live-pill-txt">Season IV Live</span>
+                </div>
+            </div>
+            <div class="greeting-sub">
+                <span class="greeting-dot"></span>
+                <span id="greeting-sub">Rise &amp; grow your wealth</span>
+            </div>
+        </div>
+
+        <!-- LOCKED ALERT -->
+        <div class="locked-alert" id="locked-alert" style="display:none;">
+            <div style="display:flex;align-items:center;gap:10px;flex:1;">
+                <div class="locked-icon">
+                    <svg width="15" height="15" fill="none" stroke="rgba(155,90,58,.9)" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                </div>
+                <div>
+                    <div style="font-size:.78rem;font-weight:500;color:var(--ink);margin-bottom:2px;" id="locked-alert-title">$5,000.00 USDT is security-locked</div>
+                    <div style="font-size:.65rem;color:var(--txt2);">You can invest these funds · Withdrawal available in <span id="locked-alert-cd">14d 6h</span></div>
+                </div>
+            </div>
+            <button class="btn btn-outline" style="padding:7px 13px;font-size:.66rem;white-space:nowrap;" onclick="switchTab('season')">Invest Now</button>
+        </div>
+
+        <!-- BALANCE HERO -->
+        <div class="balance-hero">
+            <div class="hero-corner tl"></div>
+            <div class="hero-corner tr"></div>
+            <div class="hero-corner bl"></div>
+            <div class="hero-corner br"></div>
+            <div class="hero-top-line"></div>
+            <div class="hero-inner">
+                <div class="hero-row">
+                    <div style="flex:1;">
+                        <div class="balance-label-row">
+                            <div class="balance-label-line"></div>
+                            <div class="balance-label-txt">Total Portfolio · USDT</div>
+                            <div class="balance-label-line"></div>
+                        </div>
+                        <div class="balance-num" id="balance-num">$24,850.00</div>
+                        <div class="pnl-row">
+              <span class="pnl-badge" style="background:rgba(74,103,65,.15);border:1px solid rgba(74,103,65,.35);color:#6a8c60;">
+                ↑ +$3,240
+              </span>
+                            <span class="balance-sub-txt">all-time profit</span>
+                            <span class="avg-roi-badge">+12.4% avg ROI</span>
+                        </div>
+                        <div class="locked-line" id="hero-locked-line" style="display:none;">
+                            <svg width="11" height="11" fill="none" stroke="rgba(184,147,90,0.6)" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                            Withdrawable now: <strong id="hero-withdrawable">$19,850.00</strong>
+                        </div>
+                    </div>
+                    <div class="hero-roi-box" id="hero-roi-box">
+                        <div class="hero-roi-label">Season IV</div>
+                        <div class="hero-roi-num">12–18%</div>
+                        <div class="hero-roi-sub">Projected ROI</div>
+                    </div>
+                </div>
+                <!-- PROGRESS BAR -->
+                <div class="prog-section">
+                    <div class="prog-labels">
+                        <div class="prog-label-left">
+                            <div style="width:6px;height:6px;border-radius:50%;background:var(--sage);opacity:.7;animation:livePulse 1.8s ease-in-out infinite;"></div>
+                            Season Progress
+                        </div>
+                        <span class="prog-labels-right">67.3%</span>
+                    </div>
+                    <div class="prog-track"><div class="prog-fill" style="width:0%" id="prog-fill"></div></div>
+                    <div class="prog-sub">
+                        <span>Entry $10,000</span>
+                        <span>Target 12–18%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STAT CARDS -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <div class="stat-icon" style="background:rgba(184,147,90,0.1);">
+                        <svg width="12" height="12" fill="none" stroke="var(--gold)" stroke-width="1.8" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-4 0v2"/></svg>
+                    </div>
+                    <span class="stat-label">Invested</span>
+                </div>
+                <div class="stat-num stat-gold">$10,000</div>
+                <div class="stat-sub">all seasons</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <div class="stat-icon" style="background:rgba(74,103,65,0.1);">
+                        <svg width="12" height="12" fill="none" stroke="var(--sage)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                    </div>
+                    <span class="stat-label">Withdrawable</span>
+                </div>
+                <div class="stat-num stat-up">$19,850</div>
+                <div class="stat-sub">available now</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <div class="stat-icon" style="background:rgba(74,103,65,0.08);">
+                        <svg width="12" height="12" fill="none" stroke="var(--sage-l)" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                    </div>
+                    <span class="stat-label">Total Profits</span>
+                </div>
+                <div class="stat-num stat-up">+$3,240</div>
+                <div class="stat-sub">all time</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <div class="stat-icon" style="background:rgba(74,103,65,0.08);">
+                        <svg width="12" height="12" fill="none" stroke="var(--sage)" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" opacity=".4"/><path d="M8 11V8a4 4 0 018 0" opacity=".4"/></svg>
+                    </div>
+                    <span class="stat-label">Locked</span>
+                </div>
+                <div class="stat-num">$0.00</div>
+                <div class="stat-sub">No funds locked</div>
+            </div>
+        </div>
+
+        <!-- ACTION BUTTONS -->
+        <div class="action-row">
+            <button class="btn btn-dark" onclick="switchTab('referral')"><span>Refer &amp; Earn</span></button>
+            <button class="btn btn-outline" onclick="switchTab('season')">Invest Now →</button>
+        </div>
+
+        <!-- CHART CARD -->
+        <div class="card chart-card">
+            <div class="card-inner">
+                <span class="card-label">Performance</span>
+                <div class="card-title">Profit Trend</div>
+                <div class="chart-wrap"><canvas id="perf-chart"></canvas></div>
+                <div class="divider"></div>
+                <div class="chart-footer">
+                    <div class="chart-stat" style="text-align:left;">
+                        <div class="chart-stat-label">Best</div>
+                        <div class="chart-stat-val" style="color:var(--sage);">+14.2%</div>
+                    </div>
+                    <div class="chart-stat" style="text-align:center;">
+                        <div class="chart-stat-label">Avg</div>
+                        <div class="chart-stat-val" style="color:var(--sage);">+12.4%</div>
+                    </div>
+                    <div class="chart-stat" style="text-align:right;">
+                        <div class="chart-stat-label">Seasons</div>
+                        <div class="chart-stat-val">4</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEASONS HISTORY CARD -->
+        <div class="card seasons-card">
+            <div class="card-inner">
+                <div class="card-header">
+                    <div>
+                        <span class="card-label">History</span>
+                        <div class="card-title">Seasons</div>
+                    </div>
+                    <button class="card-header-action" onclick="switchTab('season')">All →</button>
+                </div>
+                <div class="season-rows">
+                    <div class="season-row">
+                        <div class="season-row-left">
+                            <div class="season-badge" style="background:rgba(74,103,65,0.1);border:1px solid rgba(74,103,65,0.25);color:var(--sage);">SI</div>
+                            <div>
+                                <div class="season-name">Season I</div>
+                                <div class="season-period">Jan – Mar 2024</div>
+                            </div>
+                        </div>
+                        <div class="season-row-right">
+                            <div class="season-roi" style="color:var(--sage);">+11.8%</div>
+                            <span class="tag tag-sage">Profit</span>
+                        </div>
+                    </div>
+                    <div class="season-row">
+                        <div class="season-row-left">
+                            <div class="season-badge" style="background:rgba(74,103,65,0.1);border:1px solid rgba(74,103,65,0.25);color:var(--sage);">SII</div>
+                            <div>
+                                <div class="season-name">Season II</div>
+                                <div class="season-period">Apr – Jun 2024</div>
+                            </div>
+                        </div>
+                        <div class="season-row-right">
+                            <div class="season-roi" style="color:var(--sage);">+14.2%</div>
+                            <span class="tag tag-sage">Profit</span>
+                        </div>
+                    </div>
+                    <div class="season-row">
+                        <div class="season-row-left">
+                            <div class="season-badge" style="background:rgba(74,103,65,0.1);border:1px solid rgba(74,103,65,0.25);color:var(--sage);">SIII</div>
+                            <div>
+                                <div class="season-name">Season III</div>
+                                <div class="season-period">Jul – Sep 2024</div>
+                            </div>
+                        </div>
+                        <div class="season-row-right">
+                            <div class="season-roi" style="color:var(--sage);">+11.2%</div>
+                            <span class="tag tag-sage">Profit</span>
+                        </div>
+                    </div>
+                    <!-- Active season -->
+                    <div class="season-row" style="border-color:rgba(184,147,90,0.25);background:rgba(184,147,90,0.04);">
+                        <div class="season-row-left">
+                            <div class="season-badge" style="background:rgba(184,147,90,0.12);border:1px solid rgba(184,147,90,0.35);color:var(--gold);">
+                                SIV
+                                <div class="live-dot" style="position:absolute;top:-3px;right:-3px;width:6px;height:6px;background:var(--sage);"></div>
+                            </div>
+                            <div>
+                                <div class="season-name">Season IV</div>
+                                <div class="season-period">Day 61 · Running</div>
+                            </div>
+                        </div>
+                        <div class="season-row-right">
+                            <div class="season-roi" style="color:var(--gold-l);">12–18%</div>
+                            <span class="tag tag-live">Active</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- REFERRAL CARD -->
+        <div class="card ref-card">
+            <div class="card-inner">
+                <div class="ref-header">
+                    <div>
+                        <span class="card-label">Passive Income</span>
+                        <div class="card-title">Referral Programme</div>
+                        <div class="ref-body-txt">Earn <strong>15%</strong> commission on every profit earned by your referred investors — automatically credited to your wallet.</div>
+                    </div>
+                    <div class="ref-icon">
+                        <svg width="18" height="18" fill="none" stroke="var(--gold)" stroke-width="1.6" viewBox="0 0 24 24">
+                            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="ref-copy-row">
+                    <div class="ref-code">VALUT-AJ2024</div>
+                    <button class="copy-btn" onclick="copyRef()">Copy</button>
+                </div>
+                <div class="ref-stats">
+                    <div class="ref-stat">
+                        <div class="ref-stat-label">Referrals</div>
+                        <div class="ref-stat-val" style="color:var(--ink);">7</div>
+                    </div>
+                    <div class="ref-stat">
+                        <div class="ref-stat-label">Earned</div>
+                        <div class="ref-stat-val" style="color:var(--sage);">$486</div>
+                    </div>
+                    <div class="ref-stat">
+                        <div class="ref-stat-label">Rate</div>
+                        <div class="ref-stat-val" style="color:var(--gold);">15%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NOTICE STRIP -->
+        <div class="notice-strip">
+            <div>
+                <div class="notice-label">Season IV · Live</div>
+                <div class="notice-text">Season IV is currently running. Pool at 84.3% capacity.</div>
+            </div>
+        </div>
+
+    </div><!-- /main -->
+</div><!-- /screen-dashboard -->
+
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SCREEN: REFERRAL (ENHANCED)                    -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="screen" id="screen-referral">
+    <div class="main rf-screen-wrap">
+
+        <!-- Page Header -->
+        <div class="page-header">
+            <span class="page-header-label">Passive Income</span>
+            <div class="page-header-title">Referral Programme</div>
+        </div>
+
+        <!-- ── HERO DARK BANNER ── -->
+        <div class="rf-hero-dark">
+            <div class="rf-hero-icon">
+                <svg width="22" height="22" fill="none" stroke="var(--gold)" stroke-width="1.6" viewBox="0 0 24 24">
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+                </svg>
+            </div>
+            <div style="position:relative;z-index:1;">
+                <div class="rf-hero-heading">Earn <span style="color:var(--gold-l);">15%</span> per referral</div>
+                <div class="rf-hero-sub">Commission paid on every profit your referred investors earn — credited automatically each season close.</div>
+                <div class="rf-hero-badge">
+                    <div class="live-dot" style="width:6px;height:6px;background:#6a8c60;"></div>
+                    Active · 15% Commission Rate
+                </div>
+            </div>
+        </div>
+
+        <!-- ── SHARE YOUR LINK CARD ── -->
+        <div class="card" style="margin-bottom:14px;">
+            <div class="card-inner">
+                <span class="card-label">Your Referral Details</span>
+                <div class="card-title" style="margin-bottom:4px;">Share &amp; Earn</div>
+                <div style="font-size:.7rem;color:var(--txt2);margin-bottom:14px;">Share your link or code — both lead to the same reward</div>
+
+                <!-- Tab bar -->
+                <div class="rf-tab-bar" id="rf-tabs">
+                    <button class="rf-tab-btn active" onclick="rfSwitchTab('link')">Referral Link</button>
+                    <button class="rf-tab-btn" onclick="rfSwitchTab('code')">Referral Code</button>
+                </div>
+
+                <!-- Link panel -->
+                <div id="rf-panel-link">
+                    <div class="rf-input-row">
+                        <span class="rf-input-val" id="rf-link-display">valutx.com/ref/VALUT-AJ2024</span>
+                        <button class="rf-copy-btn" id="rf-copy-link-btn" onclick="rfCopy('link')">Copy Link</button>
+                    </div>
+                </div>
+
+                <!-- Code panel -->
+                <div id="rf-panel-code" style="display:none;">
+                    <div class="rf-input-row">
+                        <span class="rf-input-val mono">VALUT-AJ2024</span>
+                        <button class="rf-copy-btn" id="rf-copy-code-btn" onclick="rfCopy('code')">Copy Code</button>
+                    </div>
+                </div>
+
+                <!-- Share buttons -->
+                <div class="rf-share-row">
+                    <button class="rf-share-btn" onclick="rfShare('whatsapp')">
+                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+                        WhatsApp
+                    </button>
+                    <button class="rf-share-btn" onclick="rfShare('telegram')">
+                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        Telegram
+                    </button>
+                    <button class="rf-share-btn" onclick="rfShare('twitter')">
+                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/></svg>
+                        X / Twitter
+                    </button>
+                    <button class="rf-share-btn" onclick="rfShare('email')">
+                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        Email
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── STATS GRID ── -->
+        <div class="rf-stat-grid">
+            <div class="rf-stat-tile">
+                <div class="rf-tile-icon" style="background:rgba(184,147,90,0.1);">
+                    <svg width="12" height="12" fill="none" stroke="var(--gold)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                </div>
+                <div class="rf-tile-val stat-gold">7</div>
+                <div class="rf-tile-lbl">Total Referred</div>
+                <div class="rf-tile-sub">+2 this month</div>
+            </div>
+            <div class="rf-stat-tile">
+                <div class="rf-tile-icon" style="background:rgba(74,103,65,0.1);">
+                    <svg width="12" height="12" fill="none" stroke="var(--sage)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                </div>
+                <div class="rf-tile-val stat-up">$486</div>
+                <div class="rf-tile-lbl">Total Commission</div>
+                <div class="rf-tile-sub">From referrals' profits</div>
+            </div>
+            <div class="rf-stat-tile">
+                <div class="rf-tile-icon" style="background:rgba(184,147,90,0.08);">
+                    <svg width="12" height="12" fill="none" stroke="var(--gold)" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M15 9.354a4 4 0 10-4 6.292"/></svg>
+                </div>
+                <div class="rf-tile-val stat-gold">15%</div>
+                <div class="rf-tile-lbl">Commission Rate</div>
+                <div class="rf-tile-sub">Of referrals' profits</div>
+            </div>
+            <div class="rf-stat-tile">
+                <div class="rf-tile-icon" style="background:rgba(74,103,65,0.08);">
+                    <svg width="12" height="12" fill="none" stroke="var(--sage)" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div class="rf-tile-val">$124</div>
+                <div class="rf-tile-lbl">Pending</div>
+                <div class="rf-tile-sub">Processing · 2–3 days</div>
+            </div>
+        </div>
+
+        <!-- ── HOW IT WORKS ── -->
+        <div class="rf-how-card">
+            <span class="card-label">Program Details</span>
+            <div class="card-title" style="margin-bottom:0;">How it Works</div>
+            <div class="rf-steps">
+                <div class="rf-step">
+                    <div class="rf-step-num">1</div>
+                    <div>
+                        <div class="rf-step-title">Share Your Link</div>
+                        <div class="rf-step-desc">Copy your unique referral link or code and share it with friends, colleagues, or your audience.</div>
+                    </div>
+                </div>
+                <div class="rf-step">
+                    <div class="rf-step-num">2</div>
+                    <div>
+                        <div class="rf-step-title">They Register &amp; Invest</div>
+                        <div class="rf-step-desc">Your referral signs up using your link and makes their first investment into any active season.</div>
+                    </div>
+                </div>
+                <div class="rf-step">
+                    <div class="rf-step-num">3</div>
+                    <div>
+                        <div class="rf-step-title">You Earn Commission</div>
+                        <div class="rf-step-desc">Receive 15% of every profit your referral earns — credited automatically each season close.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── REFERRED USERS LIST ── -->
+        <div class="rf-users-card">
+
+            <div class="rf-users-head">
+                <div class="rf-users-title">Referred Users</div>
+                <div class="rf-users-sub">All users who joined through your link or code</div>
+            </div>
+
+            <!-- Filter pills -->
+            <div class="rf-filter-row">
+                <button class="rf-pill active" onclick="rfFilter('all', this)">All (7)</button>
+                <button class="rf-pill" onclick="rfFilter('active', this)">Active</button>
+                <button class="rf-pill" onclick="rfFilter('pending', this)">Pending</button>
+            </div>
+
+            <!-- User cards -->
+            <div class="rf-user-list" id="rf-user-list">
+                <!-- Injected by JS -->
+            </div>
+
+            <!-- Pagination -->
+            <div class="rf-pagination">
+                <div class="rf-pg-info" id="rf-pg-info">Showing 1–5 of 7 users</div>
+                <div class="rf-pg-btns" id="rf-pg-btns"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+<!-- /screen-referral -->
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SCREEN: SEASON -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="screen" id="screen-season">
+    <div class="main">
+        <div class="page-header">
+            <span class="page-header-label">Investment Pools</span>
+            <div class="page-header-title">Seasons</div>
+        </div>
+
+        <!-- Active season hero -->
+        <div class="season-hero">
+            <div style="position:relative;z-index:1;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                    <div>
+                        <div style="font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:rgba(246,241,233,.3);margin-bottom:5px;">Current Season</div>
+                        <div style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:300;color:var(--cream);">Season IV</div>
+                    </div>
+                    <div class="live-pill">
+                        <div class="live-dot"></div>Live
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
+                    <div>
+                        <div style="font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(246,241,233,.3);margin-bottom:4px;">Projected ROI</div>
+                        <div style="font-family:'Cormorant Garamond',serif;font-size:1.7rem;color:var(--gold-l);line-height:1;">12–18%</div>
+                    </div>
+                    <div>
+                        <div style="font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(246,241,233,.3);margin-bottom:4px;">Duration</div>
+                        <div style="font-family:'Cormorant Garamond',serif;font-size:1.7rem;color:rgba(246,241,233,.8);line-height:1;">90 days</div>
+                    </div>
+                    <div>
+                        <div style="font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(246,241,233,.3);margin-bottom:4px;">Pool Used</div>
+                        <div style="font-family:'Cormorant Garamond',serif;font-size:1.7rem;color:rgba(246,241,233,.8);line-height:1;">84.3%</div>
+                    </div>
+                    <div>
+                        <div style="font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(246,241,233,.3);margin-bottom:4px;">Min. Entry</div>
+                        <div style="font-family:'Cormorant Garamond',serif;font-size:1.7rem;color:rgba(246,241,233,.8);line-height:1;">$500</div>
+                    </div>
+                </div>
+                <div style="background:rgba(246,241,233,0.07);border-radius:100px;height:4px;overflow:hidden;margin-bottom:6px;">
+                    <div style="height:100%;width:84.3%;background:linear-gradient(90deg,var(--gold),var(--gold-l));border-radius:100px;"></div>
+                </div>
+                <div style="font-size:.62rem;color:rgba(246,241,233,.25);text-align:right;">$4,215,000 remaining</div>
+            </div>
+        </div>
+
+        <button class="btn btn-dark" style="width:100%;margin-bottom:22px;" onclick="showToast('Redirecting to invest…')"><span>Invest in Season IV</span></button>
+
+        <!-- Past seasons -->
+        <div style="font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:var(--txt3);margin-bottom:10px;">Past Seasons</div>
+        <div class="season-card-item">
+            <div class="season-card-header">
+                <div class="season-card-name">Season III</div>
+                <span class="tag tag-sage">+11.2% ROI</span>
+            </div>
+            <div class="season-detail-row"><span class="info-key">Period</span><span class="season-detail-val">Jul – Sep 2024</span></div>
+            <div class="season-detail-row"><span class="info-key">Duration</span><span class="season-detail-val">90 days</span></div>
+            <div class="season-detail-row"><span class="info-key">Pool Size</span><span class="season-detail-val">$25M USDT</span></div>
+        </div>
+        <div class="season-card-item">
+            <div class="season-card-header">
+                <div class="season-card-name">Season II</div>
+                <span class="tag tag-sage">+14.2% ROI</span>
+            </div>
+            <div class="season-detail-row"><span class="info-key">Period</span><span class="season-detail-val">Apr – Jun 2024</span></div>
+            <div class="season-detail-row"><span class="info-key">Duration</span><span class="season-detail-val">90 days</span></div>
+            <div class="season-detail-row"><span class="info-key">Pool Size</span><span class="season-detail-val">$20M USDT</span></div>
+        </div>
+        <div class="season-card-item">
+            <div class="season-card-header">
+                <div class="season-card-name">Season I</div>
+                <span class="tag tag-sage">+11.8% ROI</span>
+            </div>
+            <div class="season-detail-row"><span class="info-key">Period</span><span class="season-detail-val">Jan – Mar 2024</span></div>
+            <div class="season-detail-row"><span class="info-key">Duration</span><span class="season-detail-val">90 days</span></div>
+            <div class="season-detail-row"><span class="info-key">Pool Size</span><span class="season-detail-val">$15M USDT</span></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SCREEN: SUPPORT -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="screen" id="screen-support">
+    <div class="main">
+        <div class="page-header">
+            <span class="page-header-label">Help Centre</span>
+            <div class="page-header-title">Support</div>
+        </div>
+
+        <!-- Status banner -->
+        <div style="background:var(--ink);border-radius:var(--r-lg);padding:18px 18px;margin-bottom:14px;border:1px solid rgba(74,103,65,0.3);display:flex;align-items:center;gap:12px;">
+            <div style="width:38px;height:38px;border-radius:50%;background:rgba(74,103,65,0.2);border:1px solid rgba(106,140,96,0.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg width="16" height="16" fill="none" stroke="#6a8c60" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+            </div>
+            <div>
+                <div style="font-size:.78rem;font-weight:500;color:var(--cream);margin-bottom:2px;">Support Online</div>
+                <div style="display:flex;align-items:center;gap:5px;font-size:.64rem;color:rgba(246,241,233,0.4);">
+                    <div class="live-dot" style="width:5px;height:5px;background:#6a8c60;"></div>
+                    Average reply time · under 2 hours
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick contact options -->
+        <div class="card" style="margin-bottom:14px;">
+            <div class="card-inner">
+                <span class="card-label">Contact Us</span>
+                <div class="card-title" style="margin-bottom:16px;">Get in Touch</div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <div class="settings-item" onclick="showToast('Opening live chat…')">
+                        <div class="settings-item-left">
+                            <div class="settings-item-icon" style="background:rgba(74,103,65,0.1);">
+                                <svg width="15" height="15" fill="none" stroke="var(--sage)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                            </div>
+                            <div>
+                                <div class="settings-item-title">Live Chat</div>
+                                <div class="settings-item-sub" style="color:var(--sage);">Online now</div>
+                            </div>
+                        </div>
+                        <svg class="settings-chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+                    </div>
+                    <div class="settings-item" onclick="showToast('Opening email client…')">
+                        <div class="settings-item-left">
+                            <div class="settings-item-icon" style="background:rgba(184,147,90,0.1);">
+                                <svg width="15" height="15" fill="none" stroke="var(--gold)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                            </div>
+                            <div>
+                                <div class="settings-item-title">Email Support</div>
+                                <div class="settings-item-sub">support@valutx.com</div>
+                            </div>
+                        </div>
+                        <svg class="settings-chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+                    </div>
+                    <div class="settings-item" onclick="showToast('Opening Telegram…')">
+                        <div class="settings-item-left">
+                            <div class="settings-item-icon" style="background:rgba(28,28,28,0.07);">
+                                <svg width="15" height="15" fill="none" stroke="var(--charcoal)" stroke-width="1.8" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                            </div>
+                            <div>
+                                <div class="settings-item-title">Telegram</div>
+                                <div class="settings-item-sub">@ValutXSupport</div>
+                            </div>
+                        </div>
+                        <svg class="settings-chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit ticket -->
+        <div class="card" style="margin-bottom:14px;">
+            <div class="card-inner">
+                <span class="card-label">Ticket</span>
+                <div class="card-title" style="margin-bottom:16px;">Submit a Request</div>
+                <span class="form-label">Subject</span>
+                <select class="form-input modal-select" style="margin-bottom:14px;">
+                    <option>Deposit issue</option>
+                    <option>Withdrawal problem</option>
+                    <option>Season / investment query</option>
+                    <option>Account &amp; KYC</option>
+                    <option>Referral commission</option>
+                    <option>Other</option>
+                </select>
+                <span class="form-label">Message</span>
+                <textarea class="form-input" rows="4" placeholder="Describe your issue in detail…" style="resize:none;line-height:1.6;margin-bottom:0;"></textarea>
+                <button class="btn btn-dark" style="width:100%;margin-top:14px;" onclick="showToast('Ticket submitted — we\'ll reply within 2 hours')"><span>Send Request</span></button>
+            </div>
+        </div>
+
+        <!-- FAQ -->
+        <div class="card">
+            <div class="card-inner">
+                <span class="card-label">FAQ</span>
+                <div class="card-title" style="margin-bottom:16px;">Common Questions</div>
+                <div style="display:flex;flex-direction:column;gap:2px;" id="faq-list">
+                    <div class="faq-item" onclick="toggleFaq(0)">
+                        <div class="faq-q">How do I deposit funds?</div>
+                        <div class="faq-a">Send USDT (TRC-20) to your assigned wallet address. Deposits are credited within 30 minutes after network confirmation. Minimum deposit is $100 USDT.</div>
+                    </div>
+                    <div class="faq-item" onclick="toggleFaq(1)">
+                        <div class="faq-q">When can I withdraw?</div>
+                        <div class="faq-a">Withdrawals are available after the 30-day security lock period expires. During an active season, your invested funds remain locked until season close.</div>
+                    </div>
+                    <div class="faq-item" onclick="toggleFaq(2)">
+                        <div class="faq-q">How are referral commissions paid?</div>
+                        <div class="faq-a">You earn 15% of every profit your referred investors make. Commissions are automatically credited to your wallet balance at season close.</div>
+                    </div>
+                    <div class="faq-item" onclick="toggleFaq(3)">
+                        <div class="faq-q">What is a Season?</div>
+                        <div class="faq-a">A Season is a 90-day managed investment pool. Each season has a defined ROI range. Your funds are actively managed during this period.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SCREEN: SETTINGS -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="screen" id="screen-settings">
+    <div class="main">
+        <div class="page-header">
+            <span class="page-header-label">Account</span>
+            <div class="page-header-title">Settings</div>
+        </div>
+
+        <!-- Profile card -->
+        <div class="profile-card">
+            <div class="profile-avatar-lg">AJ</div>
+            <div>
+                <div class="profile-name">Alex Johnson</div>
+                <div class="profile-email">alex.johnson@email.com</div>
+                <span class="profile-tag">Premium Investor</span>
+            </div>
+        </div>
+
+        <!-- Account -->
+        <div class="settings-section">
+            <div class="settings-section-title">Account</div>
+            <div class="settings-item" onclick="showToast('Opening profile editor…')">
+                <div class="settings-item-left">
+                    <div class="settings-item-icon" style="background:rgba(184,147,90,0.1);">
+                        <svg width="16" height="16" fill="none" stroke="var(--gold)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+                    <div>
+                        <div class="settings-item-title">Edit Profile</div>
+                        <div class="settings-item-sub">Name, email, phone</div>
+                    </div>
+                </div>
+                <svg class="settings-chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+            <div class="settings-item" onclick="showToast('Opening KYC verification…')">
+                <div class="settings-item-left">
+                    <div class="settings-item-icon" style="background:rgba(74,103,65,0.1);">
+                        <svg width="16" height="16" fill="none" stroke="var(--sage)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    </div>
+                    <div>
+                        <div class="settings-item-title">KYC Verification</div>
+                        <div class="settings-item-sub" style="color:var(--sage);">✓ Verified</div>
+                    </div>
+                </div>
+                <svg class="settings-chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+            <div class="settings-item" onclick="showToast('Opening bank details…')">
+                <div class="settings-item-left">
+                    <div class="settings-item-icon" style="background:rgba(184,147,90,0.08);">
+                        <svg width="16" height="16" fill="none" stroke="var(--gold)" stroke-width="1.8" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                    </div>
+                    <div>
+                        <div class="settings-item-title">Payment Methods</div>
+                        <div class="settings-item-sub">Wallets & bank accounts</div>
+                    </div>
+                </div>
+                <svg class="settings-chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+        </div>
+
+        <!-- Security -->
+        <div class="settings-section">
+            <div class="settings-section-title">Security</div>
+            <div class="settings-item">
+                <div class="settings-item-left">
+                    <div class="settings-item-icon" style="background:rgba(28,28,28,0.07);">
+                        <svg width="16" height="16" fill="none" stroke="var(--charcoal)" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                    </div>
+                    <div>
+                        <div class="settings-item-title">Two-Factor Auth</div>
+                        <div class="settings-item-sub">SMS + Authenticator</div>
+                    </div>
+                </div>
+                <div class="toggle on" id="toggle-2fa" onclick="toggleSwitch('toggle-2fa')"></div>
+            </div>
+            <div class="settings-item">
+                <div class="settings-item-left">
+                    <div class="settings-item-icon" style="background:rgba(28,28,28,0.07);">
+                        <svg width="16" height="16" fill="none" stroke="var(--charcoal)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M15 7h3a5 5 0 010 10h-3m-6 0H6A5 5 0 016 7h3"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                    </div>
+                    <div>
+                        <div class="settings-item-title">Biometric Login</div>
+                        <div class="settings-item-sub">Face ID / Fingerprint</div>
+                    </div>
+                </div>
+                <div class="toggle on" id="toggle-bio" onclick="toggleSwitch('toggle-bio')"></div>
+            </div>
+            <div class="settings-item" onclick="showToast('Opening password change…')">
+                <div class="settings-item-left">
+                    <div class="settings-item-icon" style="background:rgba(28,28,28,0.07);">
+                        <svg width="16" height="16" fill="none" stroke="var(--charcoal)" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 115 19M22 2l-3 3"/></svg>
+                    </div>
+                    <div>
+                        <div class="settings-item-title">Change Password</div>
+                        <div class="settings-item-sub">Last changed 30 days ago</div>
+                    </div>
+                </div>
+                <svg class="settings-chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+        </div>
+
+        <!-- Notifications -->
+        <div class="settings-section">
+            <div class="settings-section-title">Notifications</div>
+            <div class="settings-item">
+                <div class="settings-item-left">
+                    <div class="settings-item-icon" style="background:rgba(74,103,65,0.1);">
+                        <svg width="16" height="16" fill="none" stroke="var(--sage)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+                    </div>
+                    <div>
+                        <div class="settings-item-title">Push Notifications</div>
+                        <div class="settings-item-sub">Deposits, withdrawals, seasons</div>
+                    </div>
+                </div>
+                <div class="toggle on" id="toggle-notif" onclick="toggleSwitch('toggle-notif')"></div>
+            </div>
+            <div class="settings-item">
+                <div class="settings-item-left">
+                    <div class="settings-item-icon" style="background:rgba(74,103,65,0.1);">
+                        <svg width="16" height="16" fill="none" stroke="var(--sage)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    </div>
+                    <div>
+                        <div class="settings-item-title">Email Reports</div>
+                        <div class="settings-item-sub">Weekly performance digest</div>
+                    </div>
+                </div>
+                <div class="toggle" id="toggle-email" onclick="toggleSwitch('toggle-email')"></div>
+            </div>
+        </div>
+
+        <!-- Danger zone -->
+        <div class="settings-section">
+            <div class="settings-section-title">Account Actions</div>
+            <div class="settings-item" onclick="showToast('Logging out…')" style="border-color:rgba(155,58,58,0.2);">
+                <div class="settings-item-left">
+                    <div class="settings-item-icon" style="background:rgba(155,58,58,0.08);">
+                        <svg width="16" height="16" fill="none" stroke="#b05252" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    </div>
+                    <div>
+                        <div class="settings-item-title" style="color:#b05252;">Sign Out</div>
+                        <div class="settings-item-sub">alex.johnson@email.com</div>
+                    </div>
+                </div>
+                <svg class="settings-chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+        </div>
+
+        <div style="height:10px;"></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- BOTTOM NAVIGATION BAR -->
+<!-- ═══════════════════════════════════════════════ -->
+<nav class="bottom-nav">
+    <!-- Dashboard -->
+    <button class="nav-item active" id="nav-dashboard" onclick="switchTab('dashboard')">
+        <div class="nav-icon-wrap">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+        </div>
+        <span class="nav-label">Dashboard</span>
+    </button>
+
+    <!-- Referral -->
+    <button class="nav-item" id="nav-referral" onclick="switchTab('referral')">
+        <div class="nav-icon-wrap">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+            </svg>
+        </div>
+        <span class="nav-label">Referral</span>
+    </button>
+
+    <!-- Season (CENTER) -->
+    <button class="nav-item nav-center" id="nav-season" onclick="switchTab('season')">
+        <div class="nav-icon-wrap">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+            </svg>
+        </div>
+        <span class="nav-label">Season</span>
+    </button>
+
+    <!-- Support -->
+    <button class="nav-item" id="nav-support" onclick="switchTab('support')">
+        <div class="nav-icon-wrap">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+            </svg>
+        </div>
+        <span class="nav-label">Support</span>
+    </button>
+
+    <!-- Settings -->
+    <button class="nav-item" id="nav-settings" onclick="switchTab('settings')">
+        <div class="nav-icon-wrap">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+        </div>
+        <span class="nav-label">Settings</span>
+    </button>
+</nav>
+
+
+<script>
+    /* ─── ANIMATED BG ─── */
+    (function(){
+      const c=document.getElementById('bg-canvas');
+      const x=c.getContext('2d');
+      let W=0,H=0,candles=[],waves=[],T=0,id=0;
+      function resize(){
+        W=c.width=window.innerWidth; H=c.height=window.innerHeight;
+        const n=Math.max(8,Math.floor(W/52));
+        candles=Array.from({length:n},(_,i)=>({
+          x:(i/n)*W+Math.random()*30, y:H*.28+Math.random()*H*.5,
+          w:10+Math.random()*7, h:18+Math.random()*58,
+          up:Math.random()>.42, spd:.18+Math.random()*.35,
+          phase:Math.random()*Math.PI*2, wick:7+Math.random()*18
+        }));
+        const pts=Math.ceil(W/36)+2;
+        waves=Array.from({length:4},(_,i)=>({
+          pts:Array.from({length:pts},(_,j)=>({x:j*36,y:H*(.18+i*.17)+Math.random()*55})),
+          spd:.12+i*.04, phase:i*1.1, amp:16+i*7
+        }));
+      }
+      function anim(){
+        x.clearRect(0,0,W,H); T+=.011;
+        waves.forEach((w,i)=>{
+          x.beginPath();
+          w.pts.forEach((p,j)=>{
+            const y=p.y+Math.sin(T*w.spd+j*.28+w.phase)*w.amp;
+            j===0?x.moveTo(p.x,y):x.lineTo(p.x,y);
+          });
+          x.strokeStyle=i%2===0?'rgba(74,103,65,0.9)':'rgba(184,147,90,0.7)';
+          x.lineWidth=.9; x.stroke();
+        });
+        candles.forEach(c2=>{
+          const bob=Math.sin(T*c2.spd+c2.phase)*7, cx=c2.x, cy=c2.y+bob;
+          x.strokeStyle='rgba(28,28,28,0.9)'; x.lineWidth=.9;
+          x.beginPath(); x.moveTo(cx+c2.w/2,cy-c2.wick); x.lineTo(cx+c2.w/2,cy+c2.h+c2.wick); x.stroke();
+          x.fillStyle=c2.up?'rgba(74,103,65,0.85)':'rgba(184,147,90,0.8)';
+          x.fillRect(cx,cy,c2.w,c2.h); x.strokeRect(cx,cy,c2.w,c2.h);
+        });
+        id=requestAnimationFrame(anim);
+      }
+      window.addEventListener('resize',resize); resize(); anim();
+    })();
+
+    /* ─── LOADER ─── */
+    window.addEventListener('load',()=>{
+      setTimeout(()=>{
+        const l=document.getElementById('loader');
+        l.style.transition='opacity .4s ease';
+        l.style.opacity='0';
+        setTimeout(()=>l.style.display='none',400);
+        // animate progress bar
+        setTimeout(()=>{
+          document.getElementById('prog-fill').style.width='67.3%';
+        },600);
+      },1400);
+    });
+
+    /* ─── GREETING ─── */
+    (function(){
+      const h=new Date().getHours();
+      let emoji,text,sub;
+      if(h>=5&&h<12){emoji='☀️';text='Good morning,';sub='Rise & grow your wealth';}
+      else if(h>=12&&h<17){emoji='🌤️';text='Good afternoon,';sub='Your portfolio awaits';}
+      else if(h>=17&&h<21){emoji='🌇';text='Good evening,';sub="Let's review your gains";}
+      else{emoji='🌙';text='Good night,';sub='Rest well — money works for you';}
+      document.getElementById('greeting-emoji').textContent=emoji;
+      document.getElementById('greeting-text').childNodes[0].textContent=text+'\n';
+      document.getElementById('greeting-sub').textContent=sub;
+    })();
+
+    /* ─── TOAST ─── */
+    let toastTimer=null;
+    function showToast(msg){
+      const t=document.getElementById('toast');
+      t.textContent='✓  '+msg;
+      t.classList.add('show');
+      if(toastTimer)clearTimeout(toastTimer);
+      toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+    }
+
+    /* ─── COPY REF ─── */
+    function copyRef(){
+      const code='VALUT-AJ2024';
+      if(navigator.clipboard){
+        navigator.clipboard.writeText(code).then(()=>showToast('Referral code copied')).catch(()=>showToast('Copy failed'));
+      } else {
+        showToast('Referral code copied');
+      }
+    }
+
+    /* ─── TAB SWITCHING ─── */
+    const tabs=['dashboard','referral','season','support','settings'];
+    function switchTab(tab){
+      tabs.forEach(t=>{
+        const screen=document.getElementById('screen-'+t);
+        const nav=document.getElementById('nav-'+t);
+        if(screen) screen.classList.toggle('active',t===tab);
+        if(nav) nav.classList.toggle('active',t===tab);
+      });
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+
+    /* ─── SHARE REFERRAL ─── */
+    function shareRef(method){
+      const code='VALUT-AJ2024';
+      const link='https://valutx.com/ref/'+code;
+      const msg='Join ValutX and earn from managed USDT investments. Use my code '+code+' — '+link;
+      if(method==='whatsapp') window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+      else if(method==='telegram') window.open('https://t.me/share/url?url='+encodeURIComponent(link)+'&text='+encodeURIComponent('Join ValutX with my referral code '+code),'_blank');
+      else { navigator.clipboard?.writeText(link).then(()=>showToast('Referral link copied')).catch(()=>showToast('Link copied')); showToast('Referral link copied'); }
+    }
+
+    /* ─── TOGGLE SWITCH ─── */
+    function toggleSwitch(id){
+      document.getElementById(id).classList.toggle('on');
+    }
+
+    /* ─── FAQ ACCORDION ─── */
+    function toggleFaq(idx){
+      const items=document.querySelectorAll('.faq-item');
+      items.forEach((el,i)=>{
+        if(i===idx) el.classList.toggle('open');
+        else el.classList.remove('open');
+      });
+    }
+
+    /* ─── CHART ─── */
+    window.addEventListener('load',()=>{
+      setTimeout(()=>{
+        const ctx=document.getElementById('perf-chart').getContext('2d');
+        const grad=ctx.createLinearGradient(0,0,0,150);
+        grad.addColorStop(0,'rgba(74,103,65,0.15)');
+        grad.addColorStop(1,'rgba(74,103,65,0)');
+        new Chart(ctx,{
+          type:'line',
+          data:{
+            labels:['SI','SII','SIII','SIV'],
+            datasets:[{
+              data:[11.8,14.2,11.2,null],
+              fill:true,
+              backgroundColor:grad,
+              borderColor:'#4a6741',
+              borderWidth:2,
+              pointBackgroundColor:'#4a6741',
+              pointBorderColor:'#faf7f2',
+              pointBorderWidth:2,
+              pointRadius:5,
+              pointHoverRadius:7,
+              tension:0.4,
+              spanGaps:false,
+            }],
+          },
+          options:{
+            responsive:true,maintainAspectRatio:false,
+            plugins:{
+              legend:{display:false},
+              tooltip:{
+                backgroundColor:'rgba(28,28,28,0.92)',
+                borderColor:'rgba(184,147,90,0.3)',
+                borderWidth:1,
+                titleColor:'#d4aa72',
+                bodyColor:'#f6f1e9',
+                padding:10,
+                callbacks:{label:c=>`  ROI: ${c.raw>=0?'+':''}${c.raw}%`},
+              },
+            },
+            scales:{
+              x:{grid:{color:'rgba(184,147,90,0.06)'},ticks:{color:'#9c9186',font:{family:'DM Sans',size:10}}},
+              y:{grid:{color:'rgba(184,147,90,0.06)'},ticks:{color:'#9c9186',font:{family:'DM Sans',size:10},callback:v=>(v>=0?'+':'')+v+'%'}},
+            },
+            interaction:{intersect:false,mode:'index'},
+          },
+        });
+      },1600);
+    });
+
+    /* ─── REFERRAL PAGE ─── */
+    (function(){
+
+      const REF_CODE = 'VALUT-AJ2024';
+      const REF_LINK = 'https://valutx.com/ref/' + REF_CODE;
+      const PER_PAGE = 5;
+
+      const USERS = [
+        { init:'SH', name:'Sophia Hartmann', handle:'@sophiah',   joined:'12 Jan 2025', profit:'$1,380', comm:'+$207',  status:'active'  },
+        { init:'MO', name:'Marcus Obinna',   handle:'@marcobi',   joined:'02 Feb 2025', profit:'$912',   comm:'+$137',  status:'active'  },
+        { init:'PN', name:'Priya Nair',      handle:'@priyanair', joined:'18 Feb 2025', profit:'$0',     comm:'+$0',    status:'pending' },
+        { init:'EK', name:'Ethan Kowalski',  handle:'@ethanK',    joined:'25 Jan 2025', profit:'$540',   comm:'+$81',   status:'active'  },
+        { init:'LF', name:'Lena Fischer',    handle:'@lena_f',    joined:'08 Jan 2025', profit:'$3,120', comm:'+$468',  status:'active'  },
+        { init:'JW', name:'James Waweru',    handle:'@jwaweru',   joined:'14 Mar 2025', profit:'$124',   comm:'+$19',   status:'active'  },
+        { init:'DV', name:'Dmitri Volkov',   handle:'@dvolkov',   joined:'19 Mar 2025', profit:'$0',     comm:'+$0',    status:'pending' },
+      ];
+
+      let rfCurrentFilter = 'all';
+      let rfCurrentPage   = 1;
+
+      function rfGetFiltered(){
+        if(rfCurrentFilter === 'all') return USERS;
+        return USERS.filter(u => u.status === rfCurrentFilter);
+      }
+
+      function rfRender(){
+        const filtered = rfGetFiltered();
+        const total    = filtered.length;
+        const pages    = Math.ceil(total / PER_PAGE) || 1;
+        if(rfCurrentPage > pages) rfCurrentPage = 1;
+        const start    = (rfCurrentPage - 1) * PER_PAGE;
+        const slice    = filtered.slice(start, start + PER_PAGE);
+
+        const list = document.getElementById('rf-user-list');
+        if(!list) return;
+
+        if(slice.length === 0){
+          list.innerHTML = '<div class="rf-empty">No ' + rfCurrentFilter + ' referrals yet.</div>';
+        } else {
+          list.innerHTML = slice.map(u => {
+            const badgeCls = u.status === 'active' ? 'rf-b-active' : 'rf-b-pending';
+            const profitCol = u.profit === '$0' ? '' : 'style="color:var(--sage);"';
+            const commCol   = u.comm   === '+$0' ? '' : 'style="color:var(--sage);"';
+            return `
+              <div class="rf-user-card">
+                <div class="rf-user-top">
+                  <div class="rf-user-info">
+                    <div class="rf-user-av">${u.init}</div>
+                    <div>
+                      <div class="rf-user-name">${u.name}</div>
+                      <div class="rf-user-handle">${u.handle}</div>
+                    </div>
+                  </div>
+                  <span class="rf-badge ${badgeCls}">${u.status}</span>
+                </div>
+                <div class="rf-user-row">
+                  <span class="rf-user-key">Joined</span>
+                  <span style="font-size:.75rem;color:var(--ink);">${u.joined}</span>
+                </div>
+                <div class="rf-user-row">
+                  <span class="rf-user-key">Total Profits</span>
+                  <span style="font-family:\'Cormorant Garamond\',serif;font-size:.95rem;" ${profitCol}>${u.profit}</span>
+                </div>
+                <div class="rf-user-row" style="border-bottom:none;">
+                  <span class="rf-user-key">Commission (15%)</span>
+                  <span style="font-family:\'Cormorant Garamond\',serif;font-size:.95rem;" ${commCol}>${u.comm}</span>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        // pagination info
+        const pgInfo = document.getElementById('rf-pg-info');
+        if(pgInfo) pgInfo.textContent = 'Showing ' + (start+1) + '-' + Math.min(start+PER_PAGE, total) + ' of ' + total + ' users';
+
+        // pagination buttons
+        const pgBtns = document.getElementById('rf-pg-btns');
+        if(pgBtns){
+          pgBtns.innerHTML = Array.from({length: pages}, (_,i)=>i+1).map(n =>
+            `<button class="rf-pg-btn${n===rfCurrentPage?' active':''}" onclick="rfGoPage(${n})">${n}</button>`
+          ).join('');
+        }
+      }
+
+      window.rfSwitchTab = function(tab){
+        document.getElementById('rf-panel-link').style.display = tab==='link' ? '' : 'none';
+        document.getElementById('rf-panel-code').style.display = tab==='code' ? '' : 'none';
+        document.querySelectorAll('.rf-tab-btn').forEach((b,i)=>{
+          b.classList.toggle('active', (i===0&&tab==='link')||(i===1&&tab==='code'));
+        });
+      };
+
+      window.rfCopy = function(type){
+        const text = type==='code' ? REF_CODE : REF_LINK;
+        const btnId = type==='code' ? 'rf-copy-code-btn' : 'rf-copy-link-btn';
+        const label = type==='code' ? 'Referral code copied!' : 'Referral link copied!';
+        const origLabel = type==='code' ? 'Copy Code' : 'Copy Link';
+        if(navigator.clipboard) navigator.clipboard.writeText(text).catch(()=>{});
+        const btn = document.getElementById(btnId);
+        if(btn){ btn.textContent='v Copied!'; btn.classList.add('copied'); }
+        showToast('v  ' + label);
+        setTimeout(()=>{ if(btn){ btn.textContent=origLabel; btn.classList.remove('copied'); } }, 2200);
+      };
+
+      window.rfShare = function(platform){
+        const msg = 'Join ValutX and earn from managed USDT investments. Use my code ' + REF_CODE + ' - ' + REF_LINK;
+        const urls = {
+          whatsapp: 'https://wa.me/?text=' + encodeURIComponent(msg),
+          telegram: 'https://t.me/share/url?url=' + encodeURIComponent(REF_LINK) + '&text=' + encodeURIComponent('Join ValutX! Code: ' + REF_CODE),
+          twitter:  'https://twitter.com/intent/tweet?text=' + encodeURIComponent(msg),
+          email:    'mailto:?subject=Join%20ValutX&body=' + encodeURIComponent(msg),
+        };
+        if(urls[platform]) window.open(urls[platform], '_blank');
+        showToast('v Opening ' + platform + '...');
+      };
+
+      window.rfFilter = function(filter, btn){
+        rfCurrentFilter = filter;
+        rfCurrentPage   = 1;
+        document.querySelectorAll('.rf-pill').forEach(p => p.classList.remove('active'));
+        if(btn) btn.classList.add('active');
+        rfRender();
+      };
+
+      window.rfGoPage = function(n){
+        rfCurrentPage = n;
+        rfRender();
+      };
+
+      // init on load
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', rfRender);
+      } else {
+        rfRender();
+      }
+
+    })();
+</script>
+</body>
+</html>
