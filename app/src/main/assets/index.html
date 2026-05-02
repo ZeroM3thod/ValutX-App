@@ -9,6 +9,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        /* ─── WEBVIEW BRUTE-FORCE VISIBILITY ─── */
+        .screen { display: block !important; opacity: 1 !important; visibility: visible !important; }
+        .main, .topbar { display: flex !important; opacity: 1 !important; visibility: visible !important; }
+        .loader-overlay { display: none !important; pointer-events: none !important; }
+        
         /* ─── ValutX Design Tokens ─── */
         :root {
           --ink:       #1c1c1c;
@@ -416,8 +421,9 @@
         .modal-btn-row .btn { flex:1; }
 
         /* ── SCREEN PAGES ── */
-        .screen { display:none; }
-        .screen.active { display:block; }
+        .screen { display:none; opacity: 1 !important; visibility: visible !important; }
+        .screen.active { display:block !important; }
+        #screen-dashboard { display:block !important; }
 
         /* ── SETTINGS PAGE ── */
         .settings-section { margin-bottom:22px; }

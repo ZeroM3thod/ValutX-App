@@ -16,9 +16,10 @@ import business.valutx.ui.theme.ValutXTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // This ensures the design flows under the status bar/navigation bar
         enableEdgeToEdge()
+        
+        // CRITICAL: Enable debugging so we can see console errors
+        WebView.setWebContentsDebuggingEnabled(true)
         
         setContent {
             ValutXTheme {
@@ -34,35 +35,60 @@ fun WebViewScreen() {
         modifier = Modifier.fillMaxSize(),
         factory = { context ->
             WebView(context).apply {
-                // Exact background color from the HTML design to prevent flashes
                 setBackgroundColor(android.graphics.Color.parseColor("#f6f1e9"))
                 
                 settings.apply {
                     javaScriptEnabled = true
                     domStorageEnabled = true
-                    
-                    // Essential for local HTML functionality
                     allowFileAccess = true
                     allowContentAccess = true
                     allowFileAccessFromFileURLs = true
                     allowUniversalAccessFromFileURLs = true
-                    
-                    // Mobile rendering optimizations
                     useWideViewPort = true
                     loadWithOverviewMode = true
-                    setSupportZoom(false)
-                    builtInZoomControls = false
-                    displayZoomControls = false
-                    
-                    // Compatibility for external assets (Fonts/Charts)
                     mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                     databaseEnabled = true
                 }
                 
-                webViewClient = WebViewClient()
+                webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        super.onPageFinished(view, url)
+                        // FORCE VISIBILITY VIA INJECTION
+                        view?.evaluateJavascript("""
+                            (function() {
+                                console.log('ValutX: Page finished loading, forcing visibility...');
+                                
+                                // 1. Remove loader immediately
+                                var loader = document.getElementById('loader');
+                                if (loader) {
+                                    loader.style.setProperty('display', 'none', 'important');
+                                    loader.style.setProperty('opacity', '0', 'important');
+                                }
+                                
+                                // 2. Force Dashboard to show
+                                var dashboard = document.getElementById('screen-dashboard');
+                                if (dashboard) {
+                                    dashboard.style.setProperty('display', 'block', 'important');
+                                    dashboard.style.setProperty('opacity', '1', 'important');
+                                    dashboard.style.setProperty('visibility', 'visible', 'important');
+                                    dashboard.classList.add('active');
+                                }
+                                
+                                // 3. Force main content to show
+                                var mains = document.getElementsByClassName('main');
+                                for(var i=0; i<mains.length; i++) {
+                                    mains[i].style.setProperty('opacity', '1', 'important');
+                                    mains[i].style.setProperty('visibility', 'visible', 'important');
+                                }
+                                
+                                // 4. Trigger resize for background
+                                window.dispatchEvent(new Event('resize'));
+                                console.log('ValutX: Visibility forced.');
+                            })();
+                        """.trimIndent(), null)
+                    }
+                }
                 webChromeClient = WebChromeClient()
-                
-                // Load the exact original file
                 loadUrl("file:///android_asset/index.html")
             }
         }
